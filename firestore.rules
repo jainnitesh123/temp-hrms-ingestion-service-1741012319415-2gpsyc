@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Common functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isValidOrg(orgId) {
+      return exists(/databases/$(database)/documents/organizations/$(orgId));
+    }
+
+    // Sync Events Collection
+    match /sync_events/{eventId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidOrg(request.resource.data.orgId);
+    }
+
+    // Employees Collection
+    match /employees/{employeeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidOrg(request.resource.data.orgId);
+      
+      // Validate employee data
+      function isValidEmployee() {
+        let requiredFields = ['name', 'email', 'id', 'employeeId', 'orgId'];
+        return request.resource.data.keys().hasAll(requiredFields);
+      }
+    }
+
+    // Organizations Collection
+    match /organizations/{orgId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+      
+      // Validate organization data
+      function isValidOrganization() {
+        let requiredFields = ['orgId', 'orgName', 'status'];
+        return request.resource.data.keys().hasAll(requiredFields);
+      }
+    }
+
+    // Remarks Collection
+    match /remarks/{remarkId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidOrg(request.resource.data.orgId);
+      
+      // Validate remark data
+      function isValidRemark() {
+        let requiredFields = ['remark', 'persona', 'editedBy', 'id'];
+        return request.resource.data.keys().hasAll(requiredFields);
+      }
+    }
+  }
+}
